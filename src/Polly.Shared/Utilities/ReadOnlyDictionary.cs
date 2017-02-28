@@ -36,9 +36,6 @@ namespace Polly.Utilities
     /// base class instead of creating their own. 
     /// </para>
     /// </remarks>
-#if !PORTABLE
-    [Serializable]
-#endif
     [DebuggerDisplay("Count = {Count}")]
     [ComVisible(false)]
     [DebuggerTypeProxy(typeof(ReadOnlyDictionaryDebugView<,>))]

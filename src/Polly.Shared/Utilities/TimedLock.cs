@@ -19,11 +19,7 @@ namespace Polly.Utilities
         // The TimedLock class throws a LockTimeoutException if a lock cannot be obtained within the LockTimeout.  This allows the easier discovery and debugging of deadlocks during Polly development, than if using a pure lock.
         // We do not however ever want to throw a LockTimeoutException in production - hence the forked LockTimeout value below for DEBUG versus RELEASE builds.  
         // This applies particularly because CircuitBreakerPolicy runs state-change delegates during the lock, in order that the state change holds true (cannot be superseded by activity on other threads) while the delegate runs.  
-#if DEBUG
-        private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(5);
-#else
         private static readonly TimeSpan LockTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
-#endif
 
         public static TimedLock Lock(object o)
         {
@@ -35,9 +31,6 @@ namespace Polly.Utilities
             TimedLock tl = new TimedLock(o);
             if (!Monitor.TryEnter(o, timeout))
             {
-#if DEBUG
-                System.GC.SuppressFinalize(tl.leakDetector);
-#endif
                 throw new LockTimeoutException();
             }
 
@@ -47,9 +40,6 @@ namespace Polly.Utilities
         private TimedLock(object o)
         {
             target = o;
-#if DEBUG
-            leakDetector = new Sentinel();
-#endif
         }
         private object target;
 
@@ -61,29 +51,7 @@ namespace Polly.Utilities
             // so in Debug builds, we put a finalizer in to detect
             // the error. If Dispose is called, we suppress the
             // finalizer.
-#if DEBUG
-            GC.SuppressFinalize(leakDetector);
-#endif
         }
-
-#if DEBUG
-        // (In Debug mode, we make it a class so that we can add a finalizer
-        // in order to detect when the object is not freed.)
-        private class Sentinel
-        {
-            ~Sentinel()
-            {
-                // If this finalizer runs, someone somewhere failed to
-                // call Dispose, which means we've failed to leave
-                // a monitor!
-#if !PORTABLE
-                System.Diagnostics.Debug.Fail("Undisposed lock");
-#endif
-            }
-        }
-        private Sentinel leakDetector;
-#endif
-
     }
 
     internal class LockTimeoutException : Exception
